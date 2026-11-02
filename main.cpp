@@ -71,10 +71,27 @@ LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_CREATE: {
         g_hWnd = h;
         
-        // Загружаем кастомный шрифт из папки с игрой
-        AddFontResourceExW(L"Monodetermination.ttf", FR_PRIVATE, 0);
+        // --- ИСПРАВЛЕНИЕ ЗАГРУЗКИ ШРИФТА ---
+        // 1. Получаем полный путь к нашей .exe программе
+        wchar_t exePath[MAX_PATH];
+        GetModuleFileNameW(NULL, exePath, MAX_PATH);
         
-        // Создаем шрифты (если шрифт не найден, Windows использует дефолтный)
+        // 2. Отрезаем имя файла .exe, оставляя только путь к папке
+        wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+        if (lastSlash) *(lastSlash + 1) = L'\0';
+        
+        // 3. Склеиваем путь к папке и имя шрифта
+        std::wstring fontPath = std::wstring(exePath) + L"Monodetermination.ttf";
+
+        // 4. Загружаем шрифт и проверяем результат
+        int fontsAdded = AddFontResourceExW(fontPath.c_str(), FR_PRIVATE, 0);
+        if (fontsAdded == 0) {
+            std::wstring errorMsg = L"Не удалось загрузить шрифт!\nУбедитесь, что файл Monodetermination.ttf лежит рядом с .exe файлом.\nОжидаемый путь: " + fontPath;
+            MessageBoxW(h, errorMsg.c_str(), L"Ошибка шрифта", MB_ICONERROR);
+        }
+        
+        // 5. Создаем шрифты. 
+        // ВАЖНО: "Monodetermination" - это имя шрифта ВНУТРИ файла (см. свойства TTF).
         g_fontMain = CreateFontW(32, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Monodetermination");
         g_fontSmall = CreateFontW(18, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Monodetermination");
         
@@ -99,12 +116,13 @@ LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
 
         if (g_state == STATE_DISCLAIMER) {
             // --- ЭКРАН 1: ДИСКЛЕЙМЕР ---
-            RECT textRc = { 50, cy - 100, rc.right - 50, cy + 50 };
+            // Сделал RECT чуть больше по высоте, чтобы текст точно влез
+            RECT textRc = { 50, cy - 150, rc.right - 50, cy + 50 };
             SetBkMode(dc, TRANSPARENT);
             SetTextColor(dc, TEXT_COLOR);
             HFONT oldFont = (HFONT)SelectObject(dc, g_fontMain);
             
-            // Текст предупреждения
+            // Текст предупреждения (используем \n для переноса)
             DrawTextW(dc, L"ВНИМАНИЕ\n\nЭта игра содержит элементы психологического хоррора,\nрезкие звуки и пугающие изображения.\n\nПожалуйста, будьте осторожны.", -1, &textRc, DT_CENTER | DT_TOP | DT_WORDBREAK);
             SelectObject(dc, oldFont);
 
