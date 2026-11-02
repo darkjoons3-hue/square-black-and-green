@@ -1,0 +1,33 @@
+name: Build Square Black and Green
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        
+      - name: Compile Game
+        run: |
+          cl /nologo /EHsc /O2 /MT /utf-8 /DUNICODE /D_UNICODE main.cpp /Fe:SquareGame.exe /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib
+          
+      - name: Prepare Package
+        run: |
+          # Копируем шрифт, если он загружен в репозиторий
+          if (Test-Path "Monodetermination.ttf") {
+            Copy-Item "Monodetermination.ttf" -Destination "SquareGame.ttf"
+          }
+          # Создаем папку для сборки
+          New-Item -ItemType Directory -Force -Path "build_output"
+          Copy-Item "SquareGame.exe" -Destination "build_output\"
+          if (Test-Path "SquareGame.ttf") {
+            Copy-Item "SquareGame.ttf" -Destination "build_output\"
+          }
+          
+      - name: Upload Game
+        uses: actions/upload-artifact@v4
+        with:
+          name: SquareGame_Build
+          path: build_output/
